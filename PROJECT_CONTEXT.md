@@ -1,6 +1,6 @@
 # Axum REST API Sample — Project Context
 
-- **Rust (2024), Axum, async/Tokio**
+- **Rust (2024), Actix Web, async/Tokio**
 - **Purpose:** Modular, production-ready REST API template
 - **Features:** JWT auth (refresh, revoke), SQLx/Postgres, Redis, error handling, API versioning, Docker, CI/CD, E2E tests
 

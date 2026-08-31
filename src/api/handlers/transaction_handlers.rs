@@ -1,13 +1,10 @@
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use actix_web::{http::StatusCode, web};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Uuid;
 use thiserror::Error;
 
 use crate::{
+    api::extractors,
     api::{
         APIError, APIErrorCode, APIErrorEntry, APIErrorKind,
         version::{self, APIVersion},
@@ -16,7 +13,7 @@ use crate::{
         repository::transaction_repo,
         security::jwt::{AccessClaims, ClaimsMethods},
         service::transaction_service::{self, TransferError, TransferValidationError},
-        state::SharedState,
+        state::AppState,
     },
     domain::models::transaction::Transaction,
 };
@@ -30,9 +27,11 @@ pub struct TransferOrder {
 
 pub async fn get_transaction_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-) -> Result<Json<Transaction>, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+) -> Result<web::Json<Transaction>, APIError> {
+    let state = state.into_inner();
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
@@ -47,15 +46,16 @@ pub async fn get_transaction_handler(
             _ => e.into(),
         })?;
 
-    Ok(Json(transaction))
+    Ok(web::Json(transaction))
 }
 
 pub async fn transfer_handler(
     api_version: APIVersion,
     access_claims: AccessClaims,
-    State(state): State<SharedState>,
-    Json(transfer_order): Json<TransferOrder>,
-) -> Result<Json<Transaction>, APIError> {
+    state: web::Data<AppState>,
+    extractors::Json(transfer_order): extractors::Json<TransferOrder>,
+) -> Result<web::Json<Transaction>, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
     tracing::trace!("transfer: {:?}", transfer_order);
@@ -70,7 +70,7 @@ pub async fn transfer_handler(
     )
     .await?;
 
-    Ok(Json(transaction))
+    Ok(web::Json(transaction))
 }
 
 #[derive(Debug, Error)]

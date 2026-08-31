@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
+use actix_web::dev::ServerHandle;
 use reqwest::StatusCode;
 use tokio::{sync::Mutex, time::Instant};
 
@@ -7,7 +8,7 @@ use axum_web::{
     api,
     application::{config, state::AppState},
     infrastructure::{
-        database::{Database, TestDatabase},
+        database::{Database, DatabaseError, TestDatabase},
         redis,
     },
 };
@@ -17,8 +18,23 @@ use crate::common::{
     helpers,
 };
 
+// Handle of the running test application.
+// Stopping the server on teardown releases the listening socket
+// for the next test in the same test binary.
 #[must_use]
-pub async fn run() -> TestDatabase {
+pub struct TestApp {
+    server: ServerHandle,
+    database: TestDatabase,
+}
+
+impl TestApp {
+    pub async fn drop(self) -> Result<(), DatabaseError> {
+        self.server.stop(true).await;
+        self.database.drop().await
+    }
+}
+
+pub async fn run() -> TestApp {
     // Set the environment variable.
     unsafe { std::env::set_var("ENV_TEST", "1") };
 
@@ -42,13 +58,16 @@ pub async fn run() -> TestDatabase {
     });
 
     // Run the api server.
-    tokio::spawn(async move {
-        api::server::start(shared_state).await;
-    });
+    let server = api::server::build(shared_state);
+    let server_handle = server.handle();
+    tokio::spawn(server);
 
     wait_for_service(Duration::from_secs(5)).await;
 
-    test_database
+    TestApp {
+        server: server_handle,
+        database: test_database,
+    }
 }
 
 async fn wait_for_service(duration: Duration) {

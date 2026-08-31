@@ -1,9 +1,9 @@
-# Getting started with REST API Web Services in Rust using Axum, JWT, SQLx, PostgreSQL, and Redis
+# Getting started with REST API Web Services in Rust using Actix Web, JWT, SQLx, PostgreSQL, and Redis
 
 [![build & test](https://github.com/sheroz/axum-web/actions/workflows/ci.yml/badge.svg)](https://github.com/sheroz/axum-web/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/github/license/sheroz/axum-web)](https://github.com/sheroz/axum-web/tree/main/LICENSE)
 
-This project demonstrates how to build a REST API web server in Rust using `axum`, `JSON Web Tokens (JWT)`, `SQLx`, `PostgreSQL`, and `Redis`
+This project demonstrates how to build a REST API web server in Rust using `actix-web`, `JSON Web Tokens (JWT)`, `SQLx`, `PostgreSQL`, and `Redis`
 
 The REST API web server supports JWT-based authentication and authorization, asynchronous database operations for user and account models, a basic transaction example that transfers money between accounts, and detailed API error handling in a structured format.
 
@@ -11,7 +11,7 @@ The brief description: [rust-axum-rest-api-postgres-redis-jwt-docker.html](https
 
 ## Covers
 
-- REST API web server based on [axum](https://github.com/tokio-rs/axum)
+- REST API web server based on [actix-web](https://github.com/actix/actix-web)
   - Routing and request handling
   - API versioning
   - API Error handling using structured format
@@ -112,7 +112,7 @@ ENV_TEST=1 cargo run
 Setting the `RUST_LOG` - logging level on the launch:
 
 ```shell
-RUST_LOG=info,hyper=debug,axum_web=trace cargo run
+RUST_LOG=info,actix_web=debug,axum_web=trace cargo run
 ```
 
 ## Running the Docker based full stack build

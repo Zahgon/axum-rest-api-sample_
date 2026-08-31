@@ -1,10 +1,6 @@
-use std::collections::HashMap;
+use std::future::{Ready, ready};
 
-use axum::{
-    RequestPartsExt,
-    extract::{FromRequestParts, Path},
-    http::{StatusCode, request::Parts},
-};
+use actix_web::{FromRequest, HttpRequest, dev::Payload, http::StatusCode};
 use thiserror::Error;
 
 use crate::api::error::{APIError, APIErrorCode, APIErrorEntry, APIErrorKind};
@@ -43,23 +39,17 @@ pub fn parse_version(version: &str) -> Result<APIVersion, APIError> {
     )
 }
 
-impl<S> FromRequestParts<S> for APIVersion
-where
-    S: Send + Sync,
-{
-    type Rejection = APIError;
+impl FromRequest for APIVersion {
+    type Error = APIError;
+    type Future = Ready<Result<Self, Self::Error>>;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let params: Path<HashMap<String, String>> = parts
-            .extract()
-            .await
-            .map_err(|_| ApiVersionError::VersionExtractError)?;
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        let version = match req.match_info().get("version") {
+            Some(version) => version.to_owned(),
+            None => return ready(Err(ApiVersionError::ParameterMissing.into())),
+        };
 
-        let version = params
-            .get("version")
-            .ok_or(ApiVersionError::ParameterMissing)?;
-
-        parse_version(version)
+        ready(parse_version(&version))
     }
 }
 

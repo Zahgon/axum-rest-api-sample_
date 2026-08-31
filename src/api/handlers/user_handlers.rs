@@ -1,13 +1,9 @@
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-};
+use actix_web::{HttpResponse, http::StatusCode, web};
 use sqlx::types::Uuid;
 use thiserror::Error;
 
 use crate::{
+    api::extractors,
     api::{
         APIError, APIErrorCode, APIErrorEntry, APIErrorKind,
         error::API_DOCUMENT_URL,
@@ -16,7 +12,7 @@ use crate::{
     application::{
         repository::user_repo,
         security::jwt::{AccessClaims, ClaimsMethods},
-        state::SharedState,
+        state::AppState,
     },
     domain::models::user::User,
 };
@@ -24,33 +20,37 @@ use crate::{
 pub async fn list_users_handler(
     api_version: APIVersion,
     access_claims: AccessClaims,
-    State(state): State<SharedState>,
-) -> Result<Json<Vec<User>>, APIError> {
+    state: web::Data<AppState>,
+) -> Result<web::Json<Vec<User>>, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
     access_claims.validate_role_admin()?;
     let users = user_repo::list(&state).await?;
-    Ok(Json(users))
+    Ok(web::Json(users))
 }
 
 pub async fn add_user_handler(
     api_version: APIVersion,
     access_claims: AccessClaims,
-    State(state): State<SharedState>,
-    Json(user): Json<User>,
-) -> Result<impl IntoResponse, APIError> {
+    state: web::Data<AppState>,
+    extractors::Json(user): extractors::Json<User>,
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
     access_claims.validate_role_admin()?;
     let user = user_repo::add(user, &state).await?;
-    Ok((StatusCode::CREATED, Json(user)))
+    Ok(HttpResponse::Created().json(user))
 }
 
 pub async fn get_user_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-) -> Result<Json<User>, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+) -> Result<web::Json<User>, APIError> {
+    let state = state.into_inner();
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
@@ -66,36 +66,40 @@ pub async fn get_user_handler(
             _ => APIError::from(e),
         })?;
 
-    Ok(Json(user))
+    Ok(web::Json(user))
 }
 
 pub async fn update_user_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-    Json(user): Json<User>,
-) -> Result<Json<User>, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+    extractors::Json(user): extractors::Json<User>,
+) -> Result<web::Json<User>, APIError> {
+    let state = state.into_inner();
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
     tracing::trace!("id: {}", id);
     access_claims.validate_role_admin()?;
     let user = user_repo::update(user, &state).await?;
-    Ok(Json(user))
+    Ok(web::Json(user))
 }
 
 pub async fn delete_user_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-) -> Result<impl IntoResponse, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
     tracing::trace!("id: {}", id);
     access_claims.validate_role_admin()?;
     if user_repo::delete(id, &state).await? {
-        Ok(StatusCode::OK)
+        Ok(HttpResponse::Ok().finish())
     } else {
         Err(StatusCode::NOT_FOUND)?
     }

@@ -12,7 +12,7 @@ use common::{
 #[serial]
 async fn logout_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -48,6 +48,6 @@ async fn logout_test() {
         StatusCode::UNAUTHORIZED
     );
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }

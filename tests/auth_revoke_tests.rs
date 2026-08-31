@@ -14,7 +14,7 @@ use common::{
 #[serial]
 async fn revoke_user_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -46,15 +46,15 @@ async fn revoke_user_test() {
     // We need to pause for one second so as not to interfere with the authentication of the next logins.
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 async fn revoke_all_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -78,15 +78,15 @@ async fn revoke_all_test() {
     // We need to pause for one second so as not to interfere with the authentication of the next logins.
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 async fn cleanup_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -130,6 +130,6 @@ async fn cleanup_test() {
     let deleted_tokens = auth::cleanup(&tokens.access_token).await.unwrap();
     assert!(deleted_tokens >= 4);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }

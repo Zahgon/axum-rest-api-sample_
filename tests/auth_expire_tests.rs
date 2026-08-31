@@ -12,7 +12,7 @@ use common::{
 #[serial]
 async fn access_token_expire_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -47,15 +47,15 @@ async fn access_token_expire_test() {
         StatusCode::OK
     );
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 async fn refresh_token_expire_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -77,6 +77,6 @@ async fn refresh_token_expire_test() {
     let result = auth::refresh(&tokens.refresh_token).await;
     assert_api_error_status!(result, StatusCode::UNAUTHORIZED);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }

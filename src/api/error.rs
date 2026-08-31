@@ -1,10 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
-use axum::{
-    Json,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -345,11 +341,13 @@ impl From<redis::RedisError> for APIError {
     }
 }
 
-impl IntoResponse for APIError {
-    fn into_response(self) -> Response {
+impl ResponseError for APIError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+    fn error_response(&self) -> HttpResponse {
         tracing::error!("Error response: {:?}", self);
-        let status_code =
-            StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-        (status_code, Json(self)).into_response()
+        HttpResponse::build(self.status_code()).json(self)
     }
 }
