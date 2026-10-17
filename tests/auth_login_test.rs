@@ -12,7 +12,7 @@ use common::{
 #[serial]
 async fn login_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Try unauthorized access to the root handler.
     assert_eq!(
@@ -42,6 +42,6 @@ async fn login_test() {
         StatusCode::OK
     );
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }

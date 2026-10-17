@@ -1,12 +1,8 @@
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-};
+use actix_web::{HttpResponse, http::StatusCode, web};
 use sqlx::types::Uuid;
 
 use crate::{
+    api::extractors,
     api::{
         APIError,
         version::{self, APIVersion},
@@ -14,7 +10,7 @@ use crate::{
     application::{
         repository::account_repo,
         security::jwt::{AccessClaims, ClaimsMethods},
-        state::SharedState,
+        state::AppState,
     },
     domain::models::account::Account,
 };
@@ -22,8 +18,8 @@ use crate::{
 pub async fn list_accounts_handler(
     api_version: APIVersion,
     access_claims: AccessClaims,
-    State(state): State<SharedState>,
-) -> Result<Json<Vec<Account>>, APIError> {
+    state: web::Data<AppState>,
+) -> Result<web::Json<Vec<Account>>, APIError> {
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
 
@@ -31,15 +27,15 @@ pub async fn list_accounts_handler(
 
     let mut connection = state.db_pool.acquire().await?;
     let accounts = account_repo::list(&mut connection).await?;
-    Ok(Json(accounts))
+    Ok(web::Json(accounts))
 }
 
 pub async fn add_account_handler(
     api_version: APIVersion,
     access_claims: AccessClaims,
-    State(state): State<SharedState>,
-    Json(account): Json<Account>,
-) -> Result<impl IntoResponse, APIError> {
+    state: web::Data<AppState>,
+    extractors::Json(account): extractors::Json<Account>,
+) -> Result<HttpResponse, APIError> {
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
 
@@ -47,14 +43,15 @@ pub async fn add_account_handler(
 
     let mut connection = state.db_pool.acquire().await?;
     let account = account_repo::add(account, &mut connection).await?;
-    Ok((StatusCode::CREATED, Json(account)))
+    Ok(HttpResponse::Created().json(account))
 }
 
 pub async fn get_account_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-) -> Result<Json<Account>, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+) -> Result<web::Json<Account>, APIError> {
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
@@ -64,15 +61,16 @@ pub async fn get_account_handler(
 
     let mut connection = state.db_pool.acquire().await?;
     let account = account_repo::get_by_id(id, &mut connection).await?;
-    Ok(Json(account))
+    Ok(web::Json(account))
 }
 
 pub async fn update_account_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-    Json(account): Json<Account>,
-) -> Result<Json<Account>, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+    extractors::Json(account): extractors::Json<Account>,
+) -> Result<web::Json<Account>, APIError> {
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
@@ -82,14 +80,15 @@ pub async fn update_account_handler(
 
     let mut connection = state.db_pool.acquire().await?;
     let account = account_repo::update(account, &mut connection).await?;
-    Ok(Json(account))
+    Ok(web::Json(account))
 }
 
 pub async fn delete_account_handler(
     access_claims: AccessClaims,
-    Path((version, id)): Path<(String, Uuid)>,
-    State(state): State<SharedState>,
-) -> Result<impl IntoResponse, APIError> {
+    path: web::Path<(String, Uuid)>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, APIError> {
+    let (version, id) = path.into_inner();
     let api_version: APIVersion = version::parse_version(&version)?;
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("authentication details: {:#?}", access_claims);
@@ -98,7 +97,7 @@ pub async fn delete_account_handler(
 
     let mut connection = state.db_pool.acquire().await.unwrap();
     if account_repo::delete(id, &mut connection).await? {
-        Ok(StatusCode::OK)
+        Ok(HttpResponse::Ok().finish())
     } else {
         Err(StatusCode::NOT_FOUND)?
     }

@@ -22,7 +22,7 @@ use common::{
 #[tokio::test]
 async fn account_unauthorized_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let account = Account {
         id: Uuid::new_v4(),
@@ -43,15 +43,15 @@ async fn account_unauthorized_test() {
     let result = accounts::update(account.clone(), wrong_access_token).await;
     assert_api_error_status!(result, StatusCode::UNAUTHORIZED);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn account_api_error_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -98,15 +98,15 @@ async fn account_api_error_test() {
         _ => panic!("invalid account result"),
     }
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn account_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -181,6 +181,6 @@ async fn account_test() {
     account.updated_at = account_updated.updated_at;
     assert_eq!(account_updated, account);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }

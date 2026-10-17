@@ -93,7 +93,7 @@ async fn prepare_accounts(tokens: &AuthTokens) -> (Account, Account) {
 #[tokio::test]
 async fn transaction_unauthorized_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Try unauthorized access to transaction handlers.
     let wrong_access_token = "xyz";
@@ -104,15 +104,15 @@ async fn transaction_unauthorized_test() {
     let result = transactions::transfer(some_id, some_id, 0, wrong_access_token).await;
     assert_api_error_status!(result, StatusCode::UNAUTHORIZED);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn transaction_non_existing_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -148,15 +148,15 @@ async fn transaction_non_existing_test() {
         _ => panic!("invalid transaction result"),
     }
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn transaction_transfer_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -229,15 +229,15 @@ async fn transaction_transfer_test() {
         .expect("Account fetch error.");
     assert_eq!(account_bob.balance_cents, 95);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn transfer_validate_invalid_accounts_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -298,15 +298,15 @@ async fn transfer_validate_invalid_accounts_test() {
         _ => panic!("invalid transfer result"),
     }
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn transfer_validate_distinct_accounts_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -362,15 +362,15 @@ async fn transfer_validate_distinct_accounts_test() {
         _ => panic!("invalid transfer result"),
     }
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[serial]
 #[tokio::test]
 async fn transfer_validate_unsufficient_funds_test() {
     // Start api server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Login as an admin.
     let tokens = auth::login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD_HASH)
@@ -410,6 +410,6 @@ async fn transfer_validate_unsufficient_funds_test() {
         _ => panic!("invalid transfer result"),
     }
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }

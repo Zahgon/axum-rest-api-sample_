@@ -1,9 +1,10 @@
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use actix_web::{HttpResponse, http::StatusCode, web};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::types::Uuid;
 
 use crate::{
+    api::extractors,
     api::{APIError, APIErrorCode, APIErrorEntry, APIErrorKind, version::APIVersion},
     application::{
         repository::user_repo,
@@ -12,7 +13,7 @@ use crate::{
             jwt::{AccessClaims, ClaimsMethods, RefreshClaims},
         },
         service::token_service,
-        state::SharedState,
+        state::AppState,
     },
 };
 
@@ -30,9 +31,10 @@ pub struct RevokeUser {
 #[tracing::instrument(level = tracing::Level::TRACE, name = "login", skip_all, fields(username=login.username))]
 pub async fn login_handler(
     api_version: APIVersion,
-    State(state): State<SharedState>,
-    Json(login): Json<LoginUser>,
-) -> Result<impl IntoResponse, APIError> {
+    state: web::Data<AppState>,
+    extractors::Json(login): extractors::Json<LoginUser>,
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     if let Ok(user) = user_repo::get_by_username(&login.username, &state).await {
         if user.active && user.password_hash == login.password_hash {
@@ -49,20 +51,22 @@ pub async fn login_handler(
 
 pub async fn logout_handler(
     api_version: APIVersion,
-    State(state): State<SharedState>,
+    state: web::Data<AppState>,
     refresh_claims: RefreshClaims,
-) -> Result<impl IntoResponse, APIError> {
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     tracing::trace!("refresh_claims: {:?}", refresh_claims);
     auth::logout(refresh_claims, state).await?;
-    Ok(())
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub async fn refresh_handler(
     api_version: APIVersion,
-    State(state): State<SharedState>,
+    state: web::Data<AppState>,
     refresh_claims: RefreshClaims,
-) -> Result<impl IntoResponse, APIError> {
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     let new_tokens = auth::refresh(refresh_claims, state).await?;
     Ok(tokens_to_response(new_tokens))
@@ -71,22 +75,24 @@ pub async fn refresh_handler(
 // Revoke all issued tokens until now.
 pub async fn revoke_all_handler(
     api_version: APIVersion,
-    State(state): State<SharedState>,
+    state: web::Data<AppState>,
     access_claims: AccessClaims,
-) -> Result<impl IntoResponse, APIError> {
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     access_claims.validate_role_admin()?;
     token_service::revoke_global(&state).await?;
-    Ok(())
+    Ok(HttpResponse::Ok().finish())
 }
 
 // Revoke tokens issued to user until now.
 pub async fn revoke_user_handler(
     api_version: APIVersion,
-    State(state): State<SharedState>,
+    state: web::Data<AppState>,
     access_claims: AccessClaims,
-    Json(revoke_user): Json<RevokeUser>,
-) -> Result<impl IntoResponse, APIError> {
+    extractors::Json(revoke_user): extractors::Json<RevokeUser>,
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     if access_claims.sub != revoke_user.user_id.to_string() {
         // Only admin can revoke tokens of other users.
@@ -94,14 +100,15 @@ pub async fn revoke_user_handler(
     }
     tracing::trace!("revoke_user: {:?}", revoke_user);
     token_service::revoke_user_tokens(&revoke_user.user_id.to_string(), &state).await?;
-    Ok(())
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub async fn cleanup_handler(
     api_version: APIVersion,
-    State(state): State<SharedState>,
+    state: web::Data<AppState>,
     access_claims: AccessClaims,
-) -> Result<impl IntoResponse, APIError> {
+) -> Result<HttpResponse, APIError> {
+    let state = state.into_inner();
     tracing::trace!("api version: {}", api_version);
     access_claims.validate_role_admin()?;
     tracing::trace!("authentication details: {:#?}", access_claims);
@@ -109,10 +116,10 @@ pub async fn cleanup_handler(
     let json = json!({
         "deleted_tokens": deleted,
     });
-    Ok(Json(json))
+    Ok(HttpResponse::Ok().json(json))
 }
 
-fn tokens_to_response(jwt_tokens: JwtTokens) -> impl IntoResponse {
+fn tokens_to_response(jwt_tokens: JwtTokens) -> HttpResponse {
     let json = json!({
         "access_token": jwt_tokens.access_token,
         "refresh_token": jwt_tokens.refresh_token,
@@ -120,7 +127,7 @@ fn tokens_to_response(jwt_tokens: JwtTokens) -> impl IntoResponse {
     });
 
     tracing::trace!("JWT: generated response {:#?}", json);
-    Json(json)
+    HttpResponse::Ok().json(json)
 }
 
 impl From<AuthError> for APIError {

@@ -35,7 +35,7 @@ fn test_user() -> User {
 #[serial]
 async fn user_unauthorized_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     // Try unauthorized access to user handlers.
     let wrong_access_token = "xyz";
@@ -54,15 +54,15 @@ async fn user_unauthorized_test() {
     let result = users::delete(user.id, wrong_access_token).await;
     assert_api_error_status!(result, StatusCode::UNAUTHORIZED);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 async fn list_users_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -85,15 +85,15 @@ async fn list_users_test() {
     assert!(!users.is_empty());
     assert!(users.iter().any(|u| u.id == user_id));
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 async fn get_user_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let config = helpers::config();
 
@@ -115,15 +115,15 @@ async fn get_user_test() {
         .expect("User fetch error.");
     assert_eq!(user.id, user_id);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 async fn add_get_update_delete_user_test() {
     // Start API server.
-    let test_db = test_app::run().await;
+    let app = test_app::run().await;
 
     let mut user = test_user();
 
@@ -167,6 +167,6 @@ async fn add_get_update_delete_user_test() {
     let result = users::get(user.id, &tokens.access_token).await;
     assert_api_error_status!(result, StatusCode::NOT_FOUND);
 
-    // Drop test database.
-    test_db.drop().await.unwrap();
+    // Stop the API server and drop the test database.
+    app.drop().await.unwrap();
 }
